@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option go_package = "github.com/Finciero/traces/ptypes";
+
+service Test {
+  rpc Show(TestRequest) returns (TestReply) {}
+}
+
+message Empty {}
+
+message TestRequest {
+  string user = 1;
+}
+
+message TestReply {
+  string msg = 1;
+}
