@@ -13,10 +13,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/Finciero/traces/grpcd"
-	"github.com/Finciero/traces/ptypes"
 	"github.com/codegangsta/negroni"
 	kitot "github.com/go-kit/kit/tracing/opentracing"
+	"github.com/rodrwan/traces/grpcd"
+	"github.com/rodrwan/traces/ptypes"
 
 	kitrpc "github.com/go-kit/kit/transport/grpc"
 	"github.com/gorilla/mux"

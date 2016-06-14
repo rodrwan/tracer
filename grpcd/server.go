@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Finciero/traces/ptypes"
 	kitot "github.com/go-kit/kit/tracing/opentracing"
 	"github.com/go-kit/kit/transport/grpc"
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/rodrwan/traces/ptypes"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
