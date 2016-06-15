@@ -22,13 +22,6 @@ import (
 	appdashtracer "sourcegraph.com/sourcegraph/appdash/opentracing"
 )
 
-// HeaderSpanID ....
-const (
-	HeaderSpanID       = "Span-ID"
-	HeaderParentSpanID = "Parent-Span-ID"
-	CtxSpanID          = 0
-)
-
 func main() {
 	collector := appdash.NewRemoteCollector("localhost:7701")
 	tracer := appdashtracer.NewTracer(collector)
