@@ -9,41 +9,6 @@
 			"Rev": "6da9f018688507217e8dfdd868ac05fb54210858"
 		},
 		{
-			"ImportPath": "github.com/go-kit/kit/endpoint",
-			"Comment": "v0.1.0-15-g8e29ecb",
-			"Rev": "8e29ecb32abaeb834f62d5b0f1666d45686a49a0"
-		},
-		{
-			"ImportPath": "github.com/go-kit/kit/log",
-			"Comment": "v0.1.0-15-g8e29ecb",
-			"Rev": "8e29ecb32abaeb834f62d5b0f1666d45686a49a0"
-		},
-		{
-			"ImportPath": "github.com/go-kit/kit/tracing/opentracing",
-			"Comment": "v0.1.0-15-g8e29ecb",
-			"Rev": "8e29ecb32abaeb834f62d5b0f1666d45686a49a0"
-		},
-		{
-			"ImportPath": "github.com/go-kit/kit/transport/grpc",
-			"Comment": "v0.1.0-15-g8e29ecb",
-			"Rev": "8e29ecb32abaeb834f62d5b0f1666d45686a49a0"
-		},
-		{
-			"ImportPath": "github.com/go-kit/kit/transport/http",
-			"Comment": "v0.1.0-15-g8e29ecb",
-			"Rev": "8e29ecb32abaeb834f62d5b0f1666d45686a49a0"
-		},
-		{
-			"ImportPath": "github.com/go-logfmt/logfmt",
-			"Comment": "v0.2.0-9-gd432719",
-			"Rev": "d4327190ff838312623b09bfeb50d7c93c8d9c1d"
-		},
-		{
-			"ImportPath": "github.com/go-stack/stack",
-			"Comment": "v1.5.2",
-			"Rev": "100eb0c0a9c5b306ca2fb4f165df21d80ada4b82"
-		},
-		{
 			"ImportPath": "github.com/gogo/protobuf/io",
 			"Comment": "v0.2-20-g318371c",
 			"Rev": "318371cbef6bab80e8d1c69b470fffa79eebfb54"
@@ -68,33 +33,7 @@
 			"Rev": "9fa818a44c2bf1396a17f9d5a3c0f6dd39d2ff8e"
 		},
 		{
-			"ImportPath": "github.com/kr/logfmt",
-			"Rev": "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
-		},
-		{
-			"ImportPath": "github.com/opentracing/basictracer-go",
-			"Rev": "bc2e227fd86b4ef26adaac4b21f78523127150b5"
-		},
-		{
-			"ImportPath": "github.com/opentracing/basictracer-go/wire",
-			"Rev": "bc2e227fd86b4ef26adaac4b21f78523127150b5"
-		},
-		{
-			"ImportPath": "github.com/opentracing/opentracing-go",
-			"Comment": "v0.2-190-g6faad65",
-			"Rev": "6faad65c6060f246f78a172f9f35a9d44c3d94fa"
-		},
-		{
-			"ImportPath": "github.com/opentracing/opentracing-go/ext",
-			"Comment": "v0.2-190-g6faad65",
-			"Rev": "6faad65c6060f246f78a172f9f35a9d44c3d94fa"
-		},
-		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "3f122ce3dbbe488b7e6a8bdb26f41edec852a40b"
-		},
-		{
-			"ImportPath": "golang.org/x/net/context/ctxhttp",
 			"Rev": "3f122ce3dbbe488b7e6a8bdb26f41edec852a40b"
 		},
 		{
@@ -158,11 +97,11 @@
 			"Rev": "26a631f9dd067865f87a885179204f4499a33de3"
 		},
 		{
-			"ImportPath": "sourcegraph.com/sourcegraph/appdash/internal/wire",
+			"ImportPath": "sourcegraph.com/sourcegraph/appdash/httptrace",
 			"Rev": "26a631f9dd067865f87a885179204f4499a33de3"
 		},
 		{
-			"ImportPath": "sourcegraph.com/sourcegraph/appdash/opentracing",
+			"ImportPath": "sourcegraph.com/sourcegraph/appdash/internal/wire",
 			"Rev": "26a631f9dd067865f87a885179204f4499a33de3"
 		}
 	]
