@@ -1,116 +1,99 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
-	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/codegangsta/negroni"
-	kitot "github.com/go-kit/kit/tracing/opentracing"
 	"github.com/rodrwan/traces/grpcd"
 	"github.com/rodrwan/traces/ptypes"
 
-	kitrpc "github.com/go-kit/kit/transport/grpc"
+	gcontext "github.com/gorilla/context"
 	"github.com/gorilla/mux"
-	opentracing "github.com/opentracing/opentracing-go"
 	"sourcegraph.com/sourcegraph/appdash"
-	appdashtracer "sourcegraph.com/sourcegraph/appdash/opentracing"
+	"sourcegraph.com/sourcegraph/appdash/httptrace"
 )
 
 // HeaderSpanID ....
 const (
 	HeaderSpanID       = "Span-ID"
 	HeaderParentSpanID = "Parent-Span-ID"
+	CtxSpanID          = 0
 )
+
+var recorder *appdash.Recorder
+
+func init() { appdash.RegisterEvent(GRPCEvent{}) }
 
 func main() {
 	collector := appdash.NewRemoteCollector("localhost:7701")
-	tracer := appdashtracer.NewTracer(collector)
-	opentracing.InitGlobalTracer(tracer)
 
 	s := &Server{
-		Tracer: tracer,
-		Port:   9000,
-		Addr:   "localhost",
-		Col:    collector,
+		Port: 9000,
+		Addr: "localhost",
+		Col:  collector,
 	}
 	// Run grpc Server
 	go func() {
 		s.grpcServer()
 	}()
 
+	tracemw := httptrace.Middleware(collector, &httptrace.MiddlewareConfig{
+		RouteName: func(r *http.Request) string { return r.URL.Path },
+		SetContextSpan: func(r *http.Request, spanID appdash.SpanID) {
+			gcontext.Set(r, CtxSpanID, spanID)
+		},
+	})
+
 	// Setup our router (for information, see the gorilla/mux docs):
 	router := mux.NewRouter()
-	router.HandleFunc("/", s.Home)
+	router.HandleFunc("/", s.Home(collector))
 
 	// Setup Negroni for our app (for information, see the negroni docs):
 	n := negroni.Classic()
+	n.Use(negroni.HandlerFunc(tracemw))
 	n.UseHandler(router)
 	n.Run(":8699")
 }
 
 // Home ...
-func (s *Server) Home(w http.ResponseWriter, r *http.Request) {
-	span := opentracing.StartSpan("WebService" + r.URL.Path)
-	defer span.Finish()
+func (s *Server) Home(c appdash.Collector) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		span := gcontext.Get(r, CtxSpanID).(appdash.SpanID)
 
-	fmt.Printf("\n\n%+v\n\n\n", r.Header)
+		recorder = appdash.NewRecorder(span, s.Col)
+		resp, err := s.grpcClient()
 
-	span.SetTag("Request.Host", r.Host)
-	span.SetTag("Request.Address", r.RemoteAddr)
-	addHeaderTags(span, r.Header)
+		if err != nil {
+			log.Printf("Show method has failed: %+v", err)
+		}
 
-	span.SetBaggageItem("User", "rodrwan")
+		if resp == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-	carrier := opentracing.HTTPHeaderTextMapCarrier(r.Header)
-	span.Tracer().Inject(
-		span,
-		opentracing.TextMap,
-		carrier,
-	)
-	s.Span = span
-	resp, err := s.grpcClient()
-	if err != nil {
-		log.Printf("Show method has failed: %+v", err)
-	}
-
-	if resp == nil {
-		span.SetTag("Response.Status", http.StatusBadRequest)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	span.SetTag("Response.Status", http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(resp.Msg))
-}
-
-const headerTagPrefix = "Request.Header."
-
-// addHeaderTags adds header key:value pairs to a span as a tag with the prefix
-// "Request.Header.*"
-func addHeaderTags(span opentracing.Span, h http.Header) {
-	for k, v := range h {
-		span.SetTag(headerTagPrefix+k, strings.Join(v, ", "))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(resp.Msg))
 	}
 }
 
 // Server ...
 type Server struct {
-	Tracer opentracing.Tracer
-	Port   int
-	Addr   string
-	Col    appdash.Collector
-	Span   opentracing.Span
+	Port int
+	Addr string
+	Col  appdash.Collector
 }
 
 func (s *Server) grpcServer() {
@@ -122,12 +105,16 @@ func (s *Server) grpcServer() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	testServer, err := grpcd.NewTestServer(s.Tracer)
+	testServer, err := grpcd.NewTestServer()
 	if err != nil {
 		log.Fatalf("failed to connect db: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(
+			tracerServerInterceptor(s.Col),
+		),
+	)
 	ptypes.RegisterTestServer(grpcServer, testServer)
 
 	log.Fatalln(grpcServer.Serve(lis))
@@ -144,24 +131,80 @@ func (s *Server) grpcClient() (*ptypes.TestReply, error) {
 
 	t := ptypes.NewTestClient(conn)
 	ctx := context.Background()
-
-	md := metadata.New(map[string]string{
-		"User":       "test",
-		"request_id": "1234asdf",
-	})
-
-	var toGRPCFunc kitrpc.RequestFunc = kitot.ToGRPCRequest(s.Tracer, nil)
+	SpanID := recorder.SpanID
+	// Set SpanID to meta
+	md := metadata.Pairs("spanid", SpanID.String())
 	ctx = metadata.NewContext(ctx, md)
-	ctx = opentracing.ContextWithSpan(ctx, s.Span)
-	ctx = toGRPCFunc(ctx, &md)
-	// There's nothing we can do with an error here.
-
-	if err != nil {
-		s.Span.LogEvent(err.Error())
-		return nil, errors.New("Error while create tracer")
-	}
-
 	return t.Show(ctx, &ptypes.TestRequest{
 		User: "Test",
 	})
 }
+
+func tracerServerInterceptor(c appdash.Collector) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+
+		fmt.Println("[GRPC] Started", info.FullMethod)
+		// md, ok := metadata.FromContext(ctx)
+		// if !ok {
+		// 	panic("Bad metadata")
+		// }
+		// spanid := md["spanid"][0]
+		// span, err := appdash.ParseSpanID(spanid)
+		// if err != nil {
+		// 	panic(err)
+		// }
+
+		s := NewServerEvent(info)
+		s.ServerRecv = time.Now()
+
+		start := time.Now()
+		// GRPC Response
+		resp, err := handler(ctx, req)
+
+		if err != nil {
+			s.StatusCode = codes.Internal
+		}
+		since := time.Since(start)
+		s.StatusCode = codes.OK
+		s.ServerSend = time.Now()
+
+		fmt.Println(recorder.IsRoot())
+		child := recorder.Child()
+		fmt.Println(child.IsRoot())
+		child.Name("GRPC " + info.FullMethod)
+		child.Event(s)
+		child.Finish()
+		recorder.Finish()
+		fmt.Println("[GRPC] Completed in", since)
+		return resp, err
+	}
+}
+
+// NewServerEvent ...
+func NewServerEvent(info *grpc.UnaryServerInfo) *GRPCEvent {
+	return &GRPCEvent{
+		Method: info.FullMethod,
+	}
+}
+
+// GRPCEvent ...
+type GRPCEvent struct {
+	Method     string     `trace:"GRPC.Method"`
+	StatusCode codes.Code `trace:"GRPC.StatusCode"`
+	ServerRecv time.Time  `trace:"GRPC.Recv"`
+	ServerSend time.Time  `trace:"GRPC.Send"`
+}
+
+// Schema returns the constant "GRPCServer".
+func (GRPCEvent) Schema() string { return "GRPCServer" }
+
+// Important implements the appdash ImportantEvent.
+func (GRPCEvent) Important() []string {
+	return []string{"GRPC.StatusCode"}
+}
+
+// Start implements the appdash TimespanEvent interface.
+func (e GRPCEvent) Start() time.Time { return e.ServerRecv }
+
+// End implements the appdash TimespanEvent interface.
+func (e GRPCEvent) End() time.Time { return e.ServerSend }
