@@ -4,6 +4,7 @@ option go_package = "github.com/rodrwan/traces/ptypes";
 
 service Test {
   rpc Show(TestRequest) returns (TestReply) {}
+  rpc Hi(TestRequest) returns (TestReply) {}
 }
 
 message Empty {}

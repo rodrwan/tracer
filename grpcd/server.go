@@ -41,6 +41,23 @@ func (s *TestServer) Show(ctx context.Context, req *ptypes.TestRequest,
 	time.Sleep(200 * time.Millisecond)
 
 	return &ptypes.TestReply{
-		Msg: "Hello " + userID,
+		Msg: "Show " + userID,
+	}, nil
+}
+
+// Hi returns endpoint for a given user_id and task_id.
+func (s *TestServer) Hi(ctx context.Context, req *ptypes.TestRequest,
+) (*ptypes.TestReply, error) {
+	userID := req.User
+
+	if userID == "" {
+		return nil, errors.New(ErrBadUserID)
+	}
+
+	// Fake process
+	time.Sleep(200 * time.Millisecond)
+
+	return &ptypes.TestReply{
+		Msg: "Hi " + userID,
 	}, nil
 }
